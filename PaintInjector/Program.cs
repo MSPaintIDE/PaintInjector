@@ -53,7 +53,7 @@ namespace NetFramework
             var stop = AddButton(process, "Stop", tooltip: "Stops the execution of the current program");
             stop.Click += (sender, args) => Console.WriteLine("Stop");
 
-            AddButton(process, "Spacer", false);
+            AddButton(process, "Spacer", space: true);
 
             var commit = AddButton(process, "Commit", tooltip: "Commits all files in the project");
             commit.Click += (sender, args) => Console.WriteLine("Commit");
@@ -77,19 +77,20 @@ namespace NetFramework
 
             var prevWidth = -1;
             textHost.CalculateCoords += (sender, args) =>
-            {
-                var nextWidth = (int) statusText.Current.BoundingRectangle.Width;
-                if (nextWidth == prevWidth) return;
-                textHost.Width = prevWidth = nextWidth;
-                textHost.ChangeBounds(textHost.Left, textHost.Top, nextWidth, textHost.Height);
-
-                textHost.Redraw();
-
+            {   
                 var statusRect = statusText.Current.BoundingRectangle;
                 var windowRect = window.Current.BoundingRectangle;
 
                 args.X += (int) (statusRect.X - windowRect.X);
                 args.Y += (int) (statusRect.Y - windowRect.Y + statusRect.Height * 0.75 - textHost.Height);
+                
+                var nextWidth = (int) statusText.Current.BoundingRectangle.Width;
+                if (nextWidth == prevWidth) return;
+                
+                textHost.Width = prevWidth = nextWidth;
+                textHost.ChangeBounds(textHost.Left, textHost.Top, nextWidth, textHost.Height);
+
+                textHost.Redraw();
             };
 
             textHost.BackgroundColor = Color.FromArgb(240, 240, 240);
@@ -101,13 +102,13 @@ namespace NetFramework
             return textHost;
         }
 
-        private ButtonHoster AddButton(Process process, string iconName, bool hasHover = true, string tooltip = null)
+        private ButtonHoster AddButton(Process process, string iconName, bool hasHover = true, bool space = false, string tooltip = null)
         {
             var buttonHost = new ButtonHoster(_eventManager, new NativeUnmanagedWindow(process.MainWindowHandle));
 
-            Bitmap icon = (Bitmap) Resources.ResourceManager.GetObject(iconName);
-            buttonHost.icon = AddBackground(icon);
-            if (hasHover) buttonHost.hoverIcon = GenerateHover(icon);
+            var icon = (Bitmap) Resources.ResourceManager.GetObject(iconName);
+            buttonHost.icon = AddBackground(icon, !space);
+            if (!space && hasHover) buttonHost.hoverIcon = GenerateHover(icon);
             buttonHost.XOffset = _lastX;
             buttonHost.YOffset = 30;
             _lastX += buttonHost.Width;
@@ -118,21 +119,24 @@ namespace NetFramework
         }
 
         // This is needed because WindowFromPoint sees through transparency. It just emulates the normal background behind it
-        private static Bitmap AddBackground(Bitmap input)
+        private static Bitmap AddBackground(Bitmap input, bool normal = true)
         {
-            var coloredLayer = new Bitmap(input.Width, input.Height);
+            var width = normal ? 25 : input.Width;
+            var height = normal ? 25 : input.Height;
+            var coloredLayer = new Bitmap(width, height);
             var graphics = Graphics.FromImage(coloredLayer);
             graphics.Clear(Color.White);
-            graphics.DrawLine(new Pen(Color.FromArgb(218, 219, 220)), 0, input.Height - 1, input.Width,
-                input.Height - 1);
-            graphics.DrawImage((Image) input.Clone(), new Rectangle(0, 0, input.Width, input.Height));
+            graphics.DrawLine(new Pen(Color.FromArgb(218, 219, 220)), 0, height - 1, width,
+                height - 1);
+            var offset = normal ? 2 : 0;
+            graphics.DrawImage((Image) input.Clone(), new Rectangle(offset, offset, input.Width, input.Height));
             return coloredLayer;
         }
 
         private Bitmap GenerateHover(Bitmap input)
         {
             var hoverLayer = (Bitmap) _hoverLayer.Clone();
-            Graphics.FromImage(hoverLayer).DrawImage(input, new Rectangle(0, 0, hoverLayer.Width, hoverLayer.Height));
+            Graphics.FromImage(hoverLayer).DrawImage(input, new Rectangle(2, 2, 21, 21));
             return hoverLayer;
         }
 
