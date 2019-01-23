@@ -1,75 +1,84 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
+using System.Reflection;
 using System.Threading;
 using System.Windows.Automation;
-using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
 using OpenTitlebarButtons.Native;
 using OpenTitlebarButtons.Utils;
-using Theraot.Collections;
-using Vanara.PInvoke;
 
 namespace NetFramework
 {
-    internal class Program
-    {
-        [STAThread]
-        private static void Main(string[] args) => new Program().Stuff();
+    public class Program
+    {   
+        static Program() => AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
 
-        private readonly EventManager _eventManager = new EventManager();
-        private readonly Bitmap _hoverLayer = (Bitmap) Resources.ResourceManager.GetObject("Hover_Layer");
-        private AutomationElement window;
-        private AutomationElement statusBar;
-        private AutomationElement statusText;
+        static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+            => Assembly.LoadFrom($@"{new FileInfo(args.RequestingAssembly.Location).DirectoryName}\{args.Name.Split(',')[0]}.dll");
 
-        private TextHoster _textHoster;
+        private static EventManager _eventManager;
+        private static Bitmap _hoverLayer;
+        private static AutomationElement window;
+        private static AutomationElement statusBar;
+        private static AutomationElement statusText;
 
-        private void Stuff()
+        private static TextHoster _textHoster;
+        
+
+        internal void GenerateButtons()
         {
-            var process = Process.GetProcessesByName("mspaint").FirstOrDefault();
-            if (process == null)
+           var thread = new Thread(() =>
             {
-                Console.WriteLine("Cannot find any Paint process.");
-                return;
-            }
+                _eventManager = new EventManager();
+                _hoverLayer = (Bitmap) Resources.ResourceManager.GetObject("Hover_Layer");
 
-            window = AutomationElement.FromHandle(process.MainWindowHandle);
-            statusBar = window.FindFirst(TreeScope.Children,
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.StatusBar));
+                var process = Process.GetProcessesByName("mspaint").FirstOrDefault();
+                if (process == null)
+                {
+                    Console.WriteLine("Cannot find any Paint process.");
+                    return;
+                }
 
-            statusText = statusBar.FindAll(TreeScope.Subtree,
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit))[4];
+                window = AutomationElement.FromHandle(process.MainWindowHandle);
+                statusBar = window.FindFirst(TreeScope.Children,
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.StatusBar));
 
-            var build = AddButton(process, "Build");
-            build.Click += (sender, args) => { Console.WriteLine("Build"); };
+                statusText = statusBar.FindAll(TreeScope.Subtree,
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit))[4];
 
-            var run = AddButton(process, "Run", tooltip: "Runs the current file");
-            run.Click += (sender, args) => Console.WriteLine("Run");
+                var build = AddButton(process, "Build");
+                build.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Build);
 
-            var stop = AddButton(process, "Stop", tooltip: "Stops the execution of the current program");
-            stop.Click += (sender, args) => Console.WriteLine("Stop");
+                var run = AddButton(process, "Run", tooltip: "Runs the current file");
+                run.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Run);
 
-            AddButton(process, "Spacer", false);
+                var stop = AddButton(process, "Stop", tooltip: "Stops the execution of the current program");
+                stop.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Stop);
 
-            var commit = AddButton(process, "Commit", tooltip: "Commits all files in the project");
-            commit.Click += (sender, args) => Console.WriteLine("Commit");
+                AddButton(process, "Spacer", space: true);
 
-            var push = AddButton(process, "Push", tooltip: "Pushes all files in the project");
-            push.Click += (sender, args) => Console.WriteLine("Push");
+                var commit = AddButton(process, "Commit", tooltip: "Commits all files in the project");
+                commit.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Commit);
 
-            var pull = AddButton(process, "Pull", tooltip: "Updates the project from git");
-            pull.Click += (sender, args) => Console.WriteLine("Pull");
+                var push = AddButton(process, "Push", tooltip: "Pushes all files in the project");
+                push.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Push);
 
-            _textHoster = AddText(process);
+                var pull = AddButton(process, "Pull", tooltip: "Updates the project from git");
+                pull.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Pull);
 
-            WaitForEverything();
+                _textHoster = AddText(process);
+
+                WaitForEverything();
+            });
+           
+           thread.SetApartmentState(ApartmentState.STA);
+           thread.Start();
+            
         }
 
-        private int _lastX = 178;
+        private static int _lastX = 178;
 
         private TextHoster AddText(Process process, string text = null)
         {
@@ -77,19 +86,20 @@ namespace NetFramework
 
             var prevWidth = -1;
             textHost.CalculateCoords += (sender, args) =>
-            {
-                var nextWidth = (int) statusText.Current.BoundingRectangle.Width;
-                if (nextWidth == prevWidth) return;
-                textHost.Width = prevWidth = nextWidth;
-                textHost.ChangeBounds(textHost.Left, textHost.Top, nextWidth, textHost.Height);
-
-                textHost.Redraw();
-
+            {   
                 var statusRect = statusText.Current.BoundingRectangle;
                 var windowRect = window.Current.BoundingRectangle;
 
                 args.X += (int) (statusRect.X - windowRect.X);
                 args.Y += (int) (statusRect.Y - windowRect.Y + statusRect.Height * 0.75 - textHost.Height);
+                
+                var nextWidth = (int) statusText.Current.BoundingRectangle.Width;
+                if (nextWidth == prevWidth) return;
+                
+                textHost.Width = prevWidth = nextWidth;
+                textHost.ChangeBounds(textHost.Left, textHost.Top, nextWidth, textHost.Height);
+
+                textHost.Redraw();
             };
 
             textHost.BackgroundColor = Color.FromArgb(240, 240, 240);
@@ -101,13 +111,13 @@ namespace NetFramework
             return textHost;
         }
 
-        private ButtonHoster AddButton(Process process, string iconName, bool hasHover = true, string tooltip = null)
+        private ButtonHoster AddButton(Process process, string iconName, bool hasHover = true, bool space = false, string tooltip = null)
         {
             var buttonHost = new ButtonHoster(_eventManager, new NativeUnmanagedWindow(process.MainWindowHandle));
 
-            Bitmap icon = (Bitmap) Resources.ResourceManager.GetObject(iconName);
-            buttonHost.icon = AddBackground(icon);
-            if (hasHover) buttonHost.hoverIcon = GenerateHover(icon);
+            var icon = (Bitmap) Resources.ResourceManager.GetObject(iconName);
+            buttonHost.icon = AddBackground(icon, !space);
+            if (!space && hasHover) buttonHost.hoverIcon = GenerateHover(icon);
             buttonHost.XOffset = _lastX;
             buttonHost.YOffset = 30;
             _lastX += buttonHost.Width;
@@ -118,21 +128,24 @@ namespace NetFramework
         }
 
         // This is needed because WindowFromPoint sees through transparency. It just emulates the normal background behind it
-        private static Bitmap AddBackground(Bitmap input)
+        private static Bitmap AddBackground(Bitmap input, bool normal = true)
         {
-            var coloredLayer = new Bitmap(input.Width, input.Height);
+            var width = normal ? 25 : input.Width;
+            var height = normal ? 25 : input.Height;
+            var coloredLayer = new Bitmap(width, height);
             var graphics = Graphics.FromImage(coloredLayer);
             graphics.Clear(Color.White);
-            graphics.DrawLine(new Pen(Color.FromArgb(218, 219, 220)), 0, input.Height - 1, input.Width,
-                input.Height - 1);
-            graphics.DrawImage((Image) input.Clone(), new Rectangle(0, 0, input.Width, input.Height));
+            graphics.DrawLine(new Pen(Color.FromArgb(218, 219, 220)), 0, height - 1, width,
+                height - 1);
+            var offset = normal ? 2 : 0;
+            graphics.DrawImage((Image) input.Clone(), new Rectangle(offset, offset, input.Width, input.Height));
             return coloredLayer;
         }
 
         private Bitmap GenerateHover(Bitmap input)
         {
             var hoverLayer = (Bitmap) _hoverLayer.Clone();
-            Graphics.FromImage(hoverLayer).DrawImage(input, new Rectangle(0, 0, hoverLayer.Width, hoverLayer.Height));
+            Graphics.FromImage(hoverLayer).DrawImage(input, new Rectangle(2, 2, 21, 21));
             return hoverLayer;
         }
 
