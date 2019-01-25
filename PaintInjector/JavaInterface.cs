@@ -35,5 +35,8 @@ namespace NetFramework
 
         [DllExport]
         public static void initializeButtons() => new Program().GenerateButtons();
+
+        [DllExport]
+        public static void initializeButtons(int processID) => new Program().GenerateButtons(processID);
     }
 }

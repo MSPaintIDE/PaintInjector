@@ -13,6 +13,8 @@ namespace NetFramework
 {
     public class Program
     {   
+        static void Main(string[] args) => new Program().GenerateButtons();
+        
         static Program() => AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
 
         static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
@@ -27,17 +29,17 @@ namespace NetFramework
         private static TextHoster _textHoster;
         
 
-        internal void GenerateButtons()
+        internal void GenerateButtons(int processId = -1)
         {
            var thread = new Thread(() =>
             {
                 _eventManager = new EventManager();
                 _hoverLayer = (Bitmap) Resources.ResourceManager.GetObject("Hover_Layer");
 
-                var process = Process.GetProcessesByName("mspaint").FirstOrDefault();
+                var process = processId != -1 ? Process.GetProcessById(processId) : Process.GetProcessesByName("mspaint").FirstOrDefault();
                 if (process == null)
                 {
-                    Console.WriteLine("Cannot find any Paint process.");
+                    Console.WriteLine("Cannot find any Paint process" + (processId == -1 ? "." : " With the process ID of " + processId + "."));
                     return;
                 }
 
