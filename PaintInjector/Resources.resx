@@ -121,31 +121,24 @@
   <data name="Spacer" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\Spacer.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  
   <data name="Hover_Layer" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\Hover_Layer.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  
   <data name="Run" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\Run.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  
   <data name="Build" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\Build.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  
   <data name="Stop" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\Stop.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  
   <data name="Commit" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\Commit.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  
   <data name="Push" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\Push.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  
   <data name="Pull" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\Pull.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>

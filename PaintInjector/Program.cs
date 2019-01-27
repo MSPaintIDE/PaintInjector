@@ -6,14 +6,42 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Windows.Automation;
+using System.Windows.Forms;
+using Gma.System.MouseKeyHook;
 using OpenTitlebarButtons.Native;
 using OpenTitlebarButtons.Utils;
 
 namespace NetFramework
 {
     public class Program
-    {   
-        static void Main(string[] args) => new Program().GenerateButtons();
+    {
+        static void Main(string[] args)
+        {
+            WindowHighlighter highlighter = null;
+            
+            var program = new Program();
+            var thread = new Thread(() =>
+            {
+                var process = Process.GetProcessesByName("mspaint").FirstOrDefault();
+                highlighter = new WindowHighlighter(program, new EventManager(), new NativeUnmanagedWindow(process.MainWindowHandle));
+                Application.Run(new ApplicationContext());
+            });
+           
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+            
+            Hook.GlobalEvents().MouseDown += (sender, eventArgs) =>
+            {
+                if (highlighter != null) highlighter.clicked = true;
+            };
+            
+            Application.Run(new ApplicationContext());
+        }
+        
+        private static void Exit(Action quit)
+        {
+            Application.Exit();
+        }
         
         static Program() => AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
 
@@ -72,7 +100,7 @@ namespace NetFramework
 
                 _textHoster = AddText(process);
 
-                WaitForEverything();
+//                WaitForEverything();
             });
            
            thread.SetApartmentState(ApartmentState.STA);
@@ -151,19 +179,6 @@ namespace NetFramework
             return hoverLayer;
         }
 
-        private static void WaitForEverything()
-        {
-            // Thanks SO Ɛ> https://stackoverflow.com/a/2586635/3929546
-
-            ManualResetEvent quitEvent = new ManualResetEvent(false);
-
-            Console.CancelKeyPress += (sender, eArgs) =>
-            {
-                quitEvent.Set();
-                eArgs.Cancel = true;
-            };
-
-            quitEvent.WaitOne();
-        }
+        private static void WaitForEverything() => Thread.Sleep(int.MaxValue);
     }
 }
