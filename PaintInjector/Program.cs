@@ -18,12 +18,13 @@ namespace NetFramework
         static void Main(string[] args)
         {
             WindowHighlighter highlighter = null;
+            _eventManager = new EventManager();
             
             var program = new Program();
             var thread = new Thread(() =>
             {
                 var process = Process.GetProcessesByName("mspaint").FirstOrDefault();
-                highlighter = new WindowHighlighter(program, new EventManager(), new NativeUnmanagedWindow(process.MainWindowHandle));
+                highlighter = new WindowHighlighter(program, _eventManager, new NativeUnmanagedWindow(process.MainWindowHandle));
                 Application.Run(new ApplicationContext());
             });
            
@@ -33,6 +34,11 @@ namespace NetFramework
             Hook.GlobalEvents().MouseDown += (sender, eventArgs) =>
             {
                 if (highlighter != null) highlighter.clicked = true;
+            };
+
+            Hook.GlobalEvents().KeyDown += (sender, eventArgs) =>
+            {
+                if (eventArgs.KeyCode == Keys.Escape) highlighter.exit = true;
             };
             
             Application.Run(new ApplicationContext());

@@ -13,7 +13,8 @@ namespace NetFramework
     public class WindowHighlighter : ElementHoster
     {
         private readonly Program _program;
-        public bool clicked = false;
+        public bool clicked;
+        public bool exit;
         private IntPtr _highlightingWindow = IntPtr.Zero;
         private readonly Dictionary<IntPtr, IntPtr> _windowCache = new Dictionary<IntPtr, IntPtr>();
 
@@ -62,6 +63,14 @@ namespace NetFramework
             var t = new Timer {SynchronizingObject = this, Interval = 500, AutoReset = true};
             t.Elapsed += (sender, args) =>
             {
+
+                if (exit)
+                {
+                    Close();
+                    t.Close();
+                    return;
+                }
+                
                 var currentPoint = Cursor.Position;
 
                 if (lastPos != Point.Empty && lastPos == currentPoint) goto clicked;
