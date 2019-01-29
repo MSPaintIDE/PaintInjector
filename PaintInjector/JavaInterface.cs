@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace NetFramework
@@ -34,9 +35,51 @@ namespace NetFramework
         public static void clickPull(Callback callback) => AddCallback(CallbackType.Pull, callback);
 
         [DllExport]
-        public static void initializeButtons() => new Program().GenerateButtons();
+        public static void initializeButtons()
+        {            
+//            new Thread(() =>
+//            {
+//                AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+//
+//                Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+//                {
+//                    Console.WriteLine("HEEEEEEEEEEEEEEE " + args);
+//                    Console.WriteLine("HEEEEEEEEEEEEEEE " + args.Name);
+//                    Console.WriteLine("HEEEEEEEEEEEEEEE " + args.RequestingAssembly);
+//                    Console.WriteLine("HEEEEEEEEEEEEEEE " + args.RequestingAssembly.Location);
+//                    Console.WriteLine(args.RequestingAssembly.Location);
+////                    Console.WriteLine($@"{new FileInfo(args.RequestingAssembly.Location).DirectoryName}\{args.Name.Split(',')[0]}.dll");
+////                    return Assembly.LoadFrom(
+////                        $@"{new FileInfo(args.RequestingAssembly.Location).DirectoryName}\{args.Name.Split(',')[0]}.dll");
+//return Assembly.LoadFrom("OpenTitlebarButtons.dll");
+//                }
+
+//                Thread.Sleep(1000);
+
+//            PerPixelAlphaWindow t = null;
+                var program = new Program();
+//                program.ChoosePaint((success, id) =>
+//                {
+//                    Console.WriteLine(success);
+//                });
+//            }).Start();
+//            Console.WriteLine("111");
+//            
+            program.ChoosePaint((success, id) =>
+            {
+                if (success)
+                {
+                    Console.WriteLine("Success!");
+                    program.GenerateButtons(id);
+                }
+                else
+                {
+                    Console.WriteLine("Error!");
+                }             
+            });
+        }
 
 //        [DllExport]
-//        public static void initializeButtons(int processID) => new Program().GenerateButtons();
+//        public static void initializeButtonsByID(int processId) => new Program().GenerateButtons(processId);
     }
 }

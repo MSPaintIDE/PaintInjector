@@ -13,12 +13,12 @@ namespace NetFramework
     public class WindowHighlighter : ElementHoster
     {
         private readonly Program _program;
-        public bool clicked;
-        public bool exit;
+        public bool Clicked;
+        public bool Exit;
         private IntPtr _highlightingWindow = IntPtr.Zero;
         private readonly Dictionary<IntPtr, IntPtr> _windowCache = new Dictionary<IntPtr, IntPtr>();
 
-        public WindowHighlighter(Program program, EventManager eventManager, NativeUnmanagedWindow parent) : base(
+        public WindowHighlighter(Program program, EventManager eventManager, NativeUnmanagedWindow parent, Program.SelectedPaint selectedPaint) : base(
             eventManager, parent)
         {
             _program = program;
@@ -64,10 +64,10 @@ namespace NetFramework
             t.Elapsed += (sender, args) =>
             {
 
-                if (exit)
+                if (Exit)
                 {
-                    Close();
                     t.Close();
+                    Close();
                     return;
                 }
                 
@@ -89,16 +89,18 @@ namespace NetFramework
                 SetWindowPos(handle1, HWND_TOPMOST, 0, 0, 0, 0, TOPMOST_FLAGS);
                 Relocate();
 
-//                SetWindowPos(ParentWindow.Handle, HWND_TOPMOST, 0, 0, 0, 0, TOPMOST_FLAGS);
-
                 clicked:
-                if (!clicked) return;
-                clicked = false;
+                if (!Clicked) return;
+                Clicked = false;
 
                 GetWindowThreadProcessId(ParentWindow.Handle, out var processId);
                 var process = Process.GetProcessById(processId);
                 if (process.ProcessName != "mspaint") return;
-                Console.WriteLine("Clicked MS Paint!");
+
+                program.DisposeEverything();
+                t.Close();
+                Close();
+                selectedPaint(true, processId);
             };
             t.Start();
         }

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Drawing;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -15,44 +14,33 @@ namespace NetFramework
 {
     public class Program
     {
+        private SelectedPaint _selectedPaint;
+        private IKeyboardMouseEvents _events;
+
+        private /* WindowHighlighter */ object _highlighter = null;
+
+//
         static void Main(string[] args)
         {
-            WindowHighlighter highlighter = null;
-            _eventManager = new EventManager();
-            
-            var program = new Program();
-            var thread = new Thread(() =>
-            {
-                var process = Process.GetProcessesByName("mspaint").FirstOrDefault();
-                highlighter = new WindowHighlighter(program, _eventManager, new NativeUnmanagedWindow(process.MainWindowHandle));
-                Application.Run(new ApplicationContext());
-            });
-           
-            thread.SetApartmentState(ApartmentState.STA);
-            thread.Start();
-            
-            Hook.GlobalEvents().MouseDown += (sender, eventArgs) =>
-            {
-                if (highlighter != null) highlighter.clicked = true;
-            };
-
-            Hook.GlobalEvents().KeyDown += (sender, eventArgs) =>
-            {
-                if (eventArgs.KeyCode == Keys.Escape) highlighter.exit = true;
-            };
-            
+            new Program().ChoosePaint((success, id) => { Console.WriteLine(); });
             Application.Run(new ApplicationContext());
         }
-        
-        private static void Exit(Action quit)
-        {
-            Application.Exit();
-        }
-        
+////
+////        private static void Exit(Action quit)
+////        {
+////            Application.Exit();
+////        }
+
         static Program() => AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
 
+//        
         static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
-            => Assembly.LoadFrom($@"{new FileInfo(args.RequestingAssembly.Location).DirectoryName}\{args.Name.Split(',')[0]}.dll");
+        {
+            if (args.Name.Contains(".resources")) return null;
+            
+            return Assembly.LoadFrom(
+                $@"{Environment.GetEnvironmentVariable("NativePath")}\{args.Name.Split(',')[0]}.dll");
+        }
 
         private static EventManager _eventManager;
         private static Bitmap _hoverLayer;
@@ -61,19 +49,78 @@ namespace NetFramework
         private static AutomationElement statusText;
 
         private static TextHoster _textHoster;
-        
+
+        public delegate void SelectedPaint(bool success, int programId);
+
+        public void ChoosePaint(SelectedPaint selectedPaint)
+        {
+            var thread2 = new Thread(() =>
+            {
+                _selectedPaint = selectedPaint;
+                _eventManager = _eventManager ?? new EventManager();
+
+                var thread = new Thread(() =>
+                {
+                    var process = Process.GetProcessesByName("mspaint").FirstOrDefault();
+                    _highlighter = new WindowHighlighter(this, _eventManager,
+                        new NativeUnmanagedWindow(process.MainWindowHandle), selectedPaint);
+                    Application.Run(new ApplicationContext());
+                });
+
+                thread.SetApartmentState(ApartmentState.STA);
+                thread.Start();
+
+                _events = Hook.GlobalEvents();
+
+                _events.MouseDown += OnEventsOnMouseDown;
+                _events.KeyDown += OnEventsOnKeyDown;
+
+                Application.Run(new ApplicationContext());
+            });
+
+            thread2.SetApartmentState(ApartmentState.STA);
+            thread2.Start();
+        }
+
+        private void OnEventsOnMouseDown(object sender, MouseEventArgs eventArgs)
+        {
+            Console.WriteLine("down " + _highlighter);
+            if (_highlighter != null) ((WindowHighlighter) _highlighter).Clicked = true;
+        }
+
+        private void OnEventsOnKeyDown(object sender, KeyEventArgs eventArgs)
+        {
+            if (eventArgs.KeyCode == Keys.Escape)
+            {
+                DisposeEverything();
+
+                _selectedPaint(false, -1);
+            }
+        }
+
+        public void DisposeEverything()
+        {
+            if (_highlighter != null) ((WindowHighlighter) _highlighter).Exit = true;
+            _events.MouseDown -= OnEventsOnMouseDown;
+            _events.KeyDown -= OnEventsOnKeyDown;
+
+            _events.Dispose();
+        }
 
         internal void GenerateButtons(int processId = -1)
         {
-           var thread = new Thread(() =>
+            var thread = new Thread(() =>
             {
-                _eventManager = new EventManager();
-                _hoverLayer = (Bitmap) Resources.ResourceManager.GetObject("Hover_Layer");
+                _eventManager = _eventManager ?? new EventManager();
+                _hoverLayer = _hoverLayer ?? (Bitmap) Resources.ResourceManager.GetObject("Hover_Layer");
 
-                var process = processId != -1 ? Process.GetProcessById(processId) : Process.GetProcessesByName("mspaint").FirstOrDefault();
+                var process = processId != -1
+                    ? Process.GetProcessById(processId)
+                    : Process.GetProcessesByName("mspaint").FirstOrDefault();
                 if (process == null)
                 {
-                    Console.WriteLine("Cannot find any Paint process" + (processId == -1 ? "." : " With the process ID of " + processId + "."));
+                    Console.WriteLine("Cannot find any Paint process" +
+                                      (processId == -1 ? "." : " With the process ID of " + processId + "."));
                     return;
                 }
 
@@ -102,16 +149,20 @@ namespace NetFramework
                 push.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Push);
 
                 var pull = AddButton(process, "Pull", tooltip: "Updates the project from git");
-                pull.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Pull);
+                pull.Click += (sender, args) =>
+                {
+                    MessageBox.Show("This feature is not currently supported, but stay tuned for updates!",
+                        "Unsupported Operation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+//                    JavaInterface.RunCallback(CallbackType.Pull);
+                };
 
                 _textHoster = AddText(process);
 
-//                WaitForEverything();
+                Application.Run(new ApplicationContext());
             });
-           
-           thread.SetApartmentState(ApartmentState.STA);
-           thread.Start();
-            
+
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
         }
 
         private static int _lastX = 178;
@@ -122,16 +173,16 @@ namespace NetFramework
 
             var prevWidth = -1;
             textHost.CalculateCoords += (sender, args) =>
-            {   
+            {
                 var statusRect = statusText.Current.BoundingRectangle;
                 var windowRect = window.Current.BoundingRectangle;
 
                 args.X += (int) (statusRect.X - windowRect.X);
                 args.Y += (int) (statusRect.Y - windowRect.Y + statusRect.Height * 0.75 - textHost.Height);
-                
+
                 var nextWidth = (int) statusText.Current.BoundingRectangle.Width;
                 if (nextWidth == prevWidth) return;
-                
+
                 textHost.Width = prevWidth = nextWidth;
                 textHost.ChangeBounds(textHost.Left, textHost.Top, nextWidth, textHost.Height);
 
@@ -147,7 +198,8 @@ namespace NetFramework
             return textHost;
         }
 
-        private ButtonHoster AddButton(Process process, string iconName, bool hasHover = true, bool space = false, string tooltip = null)
+        private ButtonHoster AddButton(Process process, string iconName, bool hasHover = true, bool space = false,
+            string tooltip = null)
         {
             var buttonHost = new ButtonHoster(_eventManager, new NativeUnmanagedWindow(process.MainWindowHandle));
 
@@ -184,7 +236,5 @@ namespace NetFramework
             Graphics.FromImage(hoverLayer).DrawImage(input, new Rectangle(2, 2, 21, 21));
             return hoverLayer;
         }
-
-        private static void WaitForEverything() => Thread.Sleep(int.MaxValue);
     }
 }

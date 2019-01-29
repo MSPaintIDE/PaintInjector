@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
     <ProjectGuid>{0C61C536-AE78-4C99-A469-5F191EE8FA3D}</ProjectGuid>
-    <OutputType>Exe<!-- Library --></OutputType>
+    <OutputType>Library<!-- Exe --></OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>NetFramework</RootNamespace>
     <AssemblyName>PaintInjector</AssemblyName>
