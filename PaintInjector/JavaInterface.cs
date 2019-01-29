@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace NetFramework
@@ -7,13 +6,13 @@ namespace NetFramework
     {   
         public delegate void Callback();
 
-        private static readonly Dictionary<CallbackType, Callback> _callbacks = new Dictionary<CallbackType, Callback>();
+        private static readonly Dictionary<CallbackType, Callback> Callbacks = new Dictionary<CallbackType, Callback>();
 
-        private static void AddCallback(CallbackType callbackType, Callback callback) => _callbacks.Add(callbackType, callback);
+        private static void AddCallback(CallbackType callbackType, Callback callback) => Callbacks.Add(callbackType, callback);
 
         public static void RunCallback(CallbackType callbackType)
         {
-            if (_callbacks.TryGetValue(callbackType, out var callback)) callback.Invoke();
+            if (Callbacks.TryGetValue(callbackType, out var callback)) callback.Invoke();
         }
 
         [DllExport]
@@ -36,50 +35,15 @@ namespace NetFramework
 
         [DllExport]
         public static void initializeButtons()
-        {            
-//            new Thread(() =>
-//            {
-//                AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
-//
-//                Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
-//                {
-//                    Console.WriteLine("HEEEEEEEEEEEEEEE " + args);
-//                    Console.WriteLine("HEEEEEEEEEEEEEEE " + args.Name);
-//                    Console.WriteLine("HEEEEEEEEEEEEEEE " + args.RequestingAssembly);
-//                    Console.WriteLine("HEEEEEEEEEEEEEEE " + args.RequestingAssembly.Location);
-//                    Console.WriteLine(args.RequestingAssembly.Location);
-////                    Console.WriteLine($@"{new FileInfo(args.RequestingAssembly.Location).DirectoryName}\{args.Name.Split(',')[0]}.dll");
-////                    return Assembly.LoadFrom(
-////                        $@"{new FileInfo(args.RequestingAssembly.Location).DirectoryName}\{args.Name.Split(',')[0]}.dll");
-//return Assembly.LoadFrom("OpenTitlebarButtons.dll");
-//                }
-
-//                Thread.Sleep(1000);
-
-//            PerPixelAlphaWindow t = null;
-                var program = new Program();
-//                program.ChoosePaint((success, id) =>
-//                {
-//                    Console.WriteLine(success);
-//                });
-//            }).Start();
-//            Console.WriteLine("111");
-//            
+        {
+            var program = new Program();
             program.ChoosePaint((success, id) =>
             {
-                if (success)
-                {
-                    Console.WriteLine("Success!");
-                    program.GenerateButtons(id);
-                }
-                else
-                {
-                    Console.WriteLine("Error!");
-                }             
+                if (success) program.GenerateButtons(id);
             });
         }
 
-//        [DllExport]
-//        public static void initializeButtonsByID(int processId) => new Program().GenerateButtons(processId);
+        [DllExport]
+        public static void initializeButtonsByID(int processId) => new Program().GenerateButtons(processId);
     }
 }

@@ -22,7 +22,20 @@ namespace NetFramework
 //
         static void Main(string[] args)
         {
-            new Program().ChoosePaint((success, id) => { Console.WriteLine(); });
+            var program = new Program();
+            program.ChoosePaint((success, id) =>
+            {
+                if (success)
+                {
+                    Console.WriteLine("Success!");
+                    program.GenerateButtons(id);
+                }
+                else
+                {
+                    Console.WriteLine("Error!");
+                }
+            });
+            
             Application.Run(new ApplicationContext());
         }
 ////
@@ -70,7 +83,7 @@ namespace NetFramework
                 thread.SetApartmentState(ApartmentState.STA);
                 thread.Start();
 
-                _events = Hook.GlobalEvents();
+                _events = _eventManager.GlobalHook;
 
                 _events.MouseDown += OnEventsOnMouseDown;
                 _events.KeyDown += OnEventsOnKeyDown;
@@ -84,7 +97,6 @@ namespace NetFramework
 
         private void OnEventsOnMouseDown(object sender, MouseEventArgs eventArgs)
         {
-            Console.WriteLine("down " + _highlighter);
             if (_highlighter != null) ((WindowHighlighter) _highlighter).Clicked = true;
         }
 
@@ -103,8 +115,6 @@ namespace NetFramework
             if (_highlighter != null) ((WindowHighlighter) _highlighter).Exit = true;
             _events.MouseDown -= OnEventsOnMouseDown;
             _events.KeyDown -= OnEventsOnKeyDown;
-
-            _events.Dispose();
         }
 
         internal void GenerateButtons(int processId = -1)
@@ -131,29 +141,30 @@ namespace NetFramework
                 statusText = statusBar.FindAll(TreeScope.Subtree,
                     new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit))[4];
 
-                var build = AddButton(process, "Build");
-                build.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Build);
+                var unmanagedWindow = new NativeUnmanagedWindow(process.MainWindowHandle);
 
-                var run = AddButton(process, "Run", tooltip: "Runs the current file");
-                run.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Run);
+                var build = AddButton(process, unmanagedWindow, "Build");
+                build.MouseClick += (sender, args) => JavaInterface.RunCallback(CallbackType.Build);
 
-                var stop = AddButton(process, "Stop", tooltip: "Stops the execution of the current program");
-                stop.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Stop);
+                var run = AddButton(process, unmanagedWindow, "Run", tooltip: "Runs the current file");
+                run.MouseClick += (sender, args) => JavaInterface.RunCallback(CallbackType.Run);
 
-                AddButton(process, "Spacer", space: true);
+                var stop = AddButton(process, unmanagedWindow, "Stop", tooltip: "Stops the execution of the current program");
+                stop.MouseClick += (sender, args) => JavaInterface.RunCallback(CallbackType.Stop);
 
-                var commit = AddButton(process, "Commit", tooltip: "Commits all files in the project");
-                commit.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Commit);
+                AddButton(process, unmanagedWindow, "Spacer", space: true);
 
-                var push = AddButton(process, "Push", tooltip: "Pushes all files in the project");
-                push.Click += (sender, args) => JavaInterface.RunCallback(CallbackType.Push);
+                var commit = AddButton(process, unmanagedWindow, "Commit", tooltip: "Commits all files in the project");
+                commit.MouseClick += (sender, args) => JavaInterface.RunCallback(CallbackType.Commit);
 
-                var pull = AddButton(process, "Pull", tooltip: "Updates the project from git");
-                pull.Click += (sender, args) =>
+                var push = AddButton(process, unmanagedWindow, "Push", tooltip: "Pushes all files in the project");
+                push.MouseClick += (sender, args) => JavaInterface.RunCallback(CallbackType.Push);
+
+                var pull = AddButton(process, unmanagedWindow, "Pull", tooltip: "Updates the project from git");
+                pull.MouseClick += (sender, args) =>
                 {
                     MessageBox.Show("This feature is not currently supported, but stay tuned for updates!",
                         "Unsupported Operation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-//                    JavaInterface.RunCallback(CallbackType.Pull);
                 };
 
                 _textHoster = AddText(process);
@@ -198,10 +209,10 @@ namespace NetFramework
             return textHost;
         }
 
-        private ButtonHoster AddButton(Process process, string iconName, bool hasHover = true, bool space = false,
+        private ButtonHoster AddButton(Process process, NativeUnmanagedWindow nativeUnmanagedWindow, string iconName, bool hasHover = true, bool space = false,
             string tooltip = null)
         {
-            var buttonHost = new ButtonHoster(_eventManager, new NativeUnmanagedWindow(process.MainWindowHandle));
+            var buttonHost = new ButtonHoster(_eventManager, nativeUnmanagedWindow);
 
             var icon = (Bitmap) Resources.ResourceManager.GetObject(iconName);
             buttonHost.icon = AddBackground(icon, !space);
